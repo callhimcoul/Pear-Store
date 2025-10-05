@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="item-card" style="margin-top:20px;">
+    <img class="card-img" src="{{ url_for('static', filename=product[3]) }}" alt="product image" width="180">
+    <div class="card-desc">
+        <h2>{{ product[1] }}</h2>
+        <p>{{ product[2] }}</p>
+    </div>
+</div>
+<h3 style="margin-top:40px;">Leave a Review</h3>
+<form method="post">
+    <textarea name="review" placeholder="Your comment..." rows="2" cols="40"></textarea><br>
+    Rating (0-5): <input name="rating" type="number" min="0" max="5" style="width:50px;">
+    <button type="submit" class="button">Add Review</button>
+</form>
+{% if review_msg %}
+<div class="success">{{ review_msg }}</div>
+{% endif %}
+<h3 style="margin-top:36px;">Reviews</h3>
+<ul>
+    {% for r in reviews %}
+    <li class="item-card" style="gap:0; padding:10px 32px;">
+        <div style="flex:1;">
+            <b>{{ r[0] }}</b>:
+            {{ r[1]|safe }}<br>
+            <span style="color:#1dc740;">{{ r[2] }} stars</span>
+        </div>
+    </li>
+    {% else %}
+    <p style="color:#aaa; margin-left:4px;">No reviews yet. Be first!</p>
+    {% endfor %}
+</ul>
+{% endblock %}

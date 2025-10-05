@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Pear Store</h1>
+<ul>
+    {% for p in products %}
+    <li class="item-card">
+        <img class="card-img" src="{{ url_for('static', filename=p[3]) }}" alt="product image" width="180">
+        <div class="card-desc">
+            <a href="{{ url_for('product', prod_id=p[0]) }}"><b>{{ p[1] }}</b></a>
+            <p>{{ p[2] }}</p>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

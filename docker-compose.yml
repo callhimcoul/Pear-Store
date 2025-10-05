@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: pear
+      POSTGRES_PASSWORD: pear123
+      POSTGRES_DB: pearstore
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "6543:5432"
+
+  web:
+    build: .
+    ports:
+      - "6060:5000"
+    environment:
+      - DATABASE_URL=postgresql://pear:pear123@db:5432/pearstore
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

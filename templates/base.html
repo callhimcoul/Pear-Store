@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pear Store</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="header">
+    {% if session.username %}
+    <span>Hello, {{ session.username }} | <a href="{{ url_for('logout') }}">Logout</a></span>
+    {% else %}
+    <span><a href="{{ url_for('login') }}">Login</a> | <a href="{{ url_for('register') }}">Register</a></span>
+    {% endif %}
+</div>
+<div class="main">
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>
