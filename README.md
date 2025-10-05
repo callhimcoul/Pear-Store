@@ -12,3 +12,4 @@
     - SQLi/XSS/Reviews/Rating wie im PDF, das ich euch geschick habe, beschrieben!
 7. **Container stoppen:**
    docker-compose down
+
