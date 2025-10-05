@@ -1,6 +1,6 @@
 import os
 import psycopg2
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, flash
 
 app = Flask(__name__)
 app.secret_key = 'pear-secret'
@@ -135,6 +135,124 @@ def product(prod_id):
     cur.close()
     conn.close()
     return render_template('review.html', product=product, reviews=reviews, review_msg=review_msg)
+
+
+
+# ---- Cart----
+def _get_cart():
+    cart = session.get('cart')
+    if not isinstance(cart, dict):
+        cart = {}
+        session['cart'] = cart
+    return cart
+
+@app.context_processor
+def inject_cart_count():
+    cart = session.get('cart', {})
+    # values are ints already, keys könnten string sein
+    return {'cart_count': sum(cart.values())}
+
+# ---- Cart endpoints ----
+@app.route('/cart')
+def view_cart():
+    cart = session.get('cart', {})
+    items = []
+
+    if cart:
+
+        # unsicher weil ids int und string sein können
+
+        id_values = []
+        for k in list(cart.keys()):
+            # int
+            if isinstance(k, str) and k.isdigit():
+                id_values.append(int(k))
+            else:
+                # string
+                id_values.append(str(k))
+
+        session['cart'] = cart  # keep as-is
+
+
+        # sql injection vulnerable, weil id alles ein kann
+
+        if id_values:
+            conn = get_db()
+            cur = conn.cursor()
+
+            sql = "SELECT id, name, description, image FROM products WHERE id = %s;"
+            rows = []
+
+            try:
+                for pid in id_values:
+
+
+                    cur.execute(sql, (pid,))
+                    rec = cur.fetchone()
+                    if rec:
+                        rows.append(rec)
+            finally:
+                cur.close()
+                conn.close()
+            # 3) Attach quantities (cart keys are strings)
+            items = [
+                {
+                    'id': r[0],
+                    'name': r[1],
+                    'description': r[2],
+                    'image': r[3],
+                    'qty': cart.get(str(r[0]), 0)
+                }
+                for r in rows
+            ]
+
+    total_qty = sum(i['qty'] for i in items)
+    return render_template('cart.html', items=items, total_qty=total_qty)
+
+
+@app.route('/cart/add/<int:prod_id>', methods=['POST'])
+def add_to_cart(prod_id):
+    cart = _get_cart()
+    key = str(prod_id)                 # store as string
+    cart[key] = cart.get(key, 0) + 1
+    session['cart'] = cart
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/cart/remove/<int:prod_id>', methods=['POST'])
+def remove_from_cart(prod_id):
+    cart = _get_cart()
+    cart.pop(str(prod_id), None)       # remove using string key
+    session['cart'] = cart
+    return redirect(url_for('view_cart'))
+
+@app.route('/cart/update/<int:prod_id>', methods=['POST'])
+def update_cart_item(prod_id):
+    cart = _get_cart()
+    key = str(prod_id)
+    try:
+        qty = int(request.form.get('qty', '1'))
+    except ValueError:
+        qty = 1
+    qty = max(0, min(qty, 99))
+    if qty == 0:
+        cart.pop(key, None)
+    else:
+        cart[key] = qty
+    session['cart'] = cart
+    return redirect(url_for('view_cart'))
+
+
+
+@app.route('/cart/clear', methods=['POST'])
+def clear_cart():
+    session.pop('cart', None)
+    # optional: from flask import flash
+    # flash('Cart cleared.')
+    return redirect(url_for('view_cart'))
+
+
+
+
 
 if __name__ == '__main__':
     init_db()

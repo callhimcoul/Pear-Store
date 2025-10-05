@@ -8,6 +8,12 @@
         <div class="card-desc">
             <a href="{{ url_for('product', prod_id=p[0]) }}"><b>{{ p[1] }}</b></a>
             <p>{{ p[2] }}</p>
+
+
+            <!-- NEW: add-to-cart -->
+            <form action="{{ url_for('add_to_cart', prod_id=p[0]) }}" method="post">
+                <button type="submit">Add to cart</button>
+            </form>
         </div>
     </li>
     {% endfor %}
