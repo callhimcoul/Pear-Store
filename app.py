@@ -1,6 +1,7 @@
 import os
 import psycopg2
 from flask import Flask, render_template, request, redirect, session, url_for, flash
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'pear-secret'
@@ -50,6 +51,24 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
+
+
+
+# damit nur login user cart adden dürfen
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get('username'):
+            # just always go to login page, no safety checks
+            return redirect(url_for('login'))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+
+
+
 
 @app.route('/')
 def index():
@@ -154,6 +173,7 @@ def inject_cart_count():
 
 # ---- Cart endpoints ----
 @app.route('/cart')
+@login_required
 def view_cart():
     cart = session.get('cart', {})
     items = []
@@ -211,6 +231,7 @@ def view_cart():
 
 
 @app.route('/cart/add/<int:prod_id>', methods=['POST'])
+@login_required
 def add_to_cart(prod_id):
     cart = _get_cart()
     key = str(prod_id)                 # store as string
