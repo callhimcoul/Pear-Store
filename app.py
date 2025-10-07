@@ -254,6 +254,79 @@ def clear_cart():
 
 
 
+# ---- Checkout ----
+
+@app.route('/checkout', methods=['GET', 'POST'])
+def checkout():
+    cart = session.get('cart', {})
+    if not cart:
+        return redirect(url_for('view_cart'))
+
+    # Fetch products for items in the cart
+    ids = []
+    for k in list(cart.keys()):
+        if isinstance(k, str) and k.isdigit():
+            ids.append(int(k))
+        else:
+            ids.append(str(k))
+
+    conn = get_db()
+    cur = conn.cursor()
+    placeholders = ",".join(["%s"] * len(ids))
+    sql = f"SELECT id, name, description, image FROM products WHERE id IN ({placeholders});"
+    cur.execute(sql, ids)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    # Build cart items with quantity
+    items = []
+    for r in rows:
+        items.append({
+            'id': r[0],
+            'name': r[1],
+            'description': r[2],
+            'image': r[3],
+            'qty': cart.get(str(r[0]), 0)
+        })
+
+    total_items = sum(i['qty'] for i in items)
+
+    if request.method == 'POST':
+        # "Process" checkout (fake)
+        name = request.form.get('name')
+        address = request.form.get('address')
+        card = request.form.get('card')
+        session.pop('cart', None)
+        return render_template('checkout_success.html',
+                               name=name,
+                               address=address,
+                               total_items=total_items)
+
+    return render_template('checkout.html', items=items, total_items=total_items)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000)

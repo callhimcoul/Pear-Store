@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Purchase Successful!</h1>
+
+<p>Thank you, <b>{{ name }}</b>! Your order of {{ total_items }} item(s) will be shipped to:</p>
+
+<pre>{{ address }}</pre>
+
+<p><i>(Payment processed successfully — just kidding)</i></p>
+
+<a href="{{ url_for('index') }}">Return to Store</a>
+{% endblock %}

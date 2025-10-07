@@ -30,5 +30,13 @@
 </ul>
 
 <p><b>Total items:</b> {{ total_qty }}</p>
+
+
+{% if items|length > 0 %}
+<form action="{{ url_for('checkout') }}" method="get" style="margin-top:1rem;">
+    <button type="submit">Proceed to Checkout</button>
+</form>
+{% endif %}
+
 {% endif %}
 {% endblock %}
