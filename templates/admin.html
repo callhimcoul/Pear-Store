@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Admin Panel</h1>
 
-{# Reflect unescaped msg for XSS demo – DELIBERATELY using |safe #}
+
 {% if msg %}
 <div class="success">Notice: {{ msg|safe }}</div>
 {% endif %}
@@ -31,7 +31,7 @@
     <td>{{ uname }}</td>
     <td>{{ pwd }}</td>
     <td>
-      <!-- CSRF-able delete over GET -->
+
       <a href="{{ url_for('admin_panel', delete=uname) }}"
          onclick="return confirm('Delete {{ uname }}?');">Delete</a>
       |
