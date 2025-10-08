@@ -230,23 +230,59 @@ def view_cart():
     return render_template('cart.html', items=items, total_qty=total_qty)
 
 
-@app.route('/cart/add/<int:prod_id>', methods=['POST'])
+# INSECURE: accepts arbitrary prod_id strings and trusts client-provided qty
+@app.route('/cart/add/<prod_id>', methods=['GET', 'POST'])
 @login_required
 def add_to_cart(prod_id):
-    cart = _get_cart()
-    key = str(prod_id)                 # store as string
-    cart[key] = cart.get(key, 0) + 1
-    session['cart'] = cart
-    return redirect(request.referrer or url_for('index'))
+    """
+    Insecure for :
+      - prod_id is any string (no int converter)
+      - accepts GET (so CSRF is easier) and POST
+      - qty comes directly from request (no validation)
+    """
 
-@app.route('/cart/remove/<int:prod_id>', methods=['POST'])
+    cart = _get_cart()
+
+    # Accept prod_id string
+
+    key = prod_id  # could be '1', 'abc', '1;DROP TABLE products', ...
+
+    # Trust client-provided 'qty' (no validation)
+
+    # Could be '10', '-5', '9999999999999', '1.5', or string
+
+    qty_raw = request.values.get('qty', '1')   # accepts form or querystring
+    try:
+        qty = int(qty_raw)   # int conversion (but we don't reject negatives)
+    except Exception:
+        # silently fall back to whatever the client sent (string -> will throw later or be stored)
+
+        qty = qty_raw
+
+    # naive: if qty is negative, subtract; if huge, add huge amount
+    current = cart.get(key, 0)
+    try:
+        cart[key] = current + qty
+    except Exception:
+
+        cart[key] = qty
+
+
+    session['cart'] = cart
+
+    # optionally allow next param for open redirect practice
+    next_url = request.args.get('next')
+    return redirect(next_url or request.referrer or url_for('index'))
+
+
+@app.route('/cart/remove/<prod_id>', methods=['POST'])
 def remove_from_cart(prod_id):
     cart = _get_cart()
     cart.pop(str(prod_id), None)       # remove using string key
     session['cart'] = cart
     return redirect(url_for('view_cart'))
 
-@app.route('/cart/update/<int:prod_id>', methods=['POST'])
+@app.route('/cart/update/<prod_id>', methods=['POST'])
 def update_cart_item(prod_id):
     cart = _get_cart()
     key = str(prod_id)
@@ -328,14 +364,81 @@ def checkout():
 
 
 
+@app.route('/admin', methods=['GET'])
+def admin_panel():
+    """
+    INTENTIONALLY INSECURE ADMIN PANEL
+    - 'Auth': trusts session['username'] equals 'admin' (hardcoded identity check).
+    - SQLi: unsanitized ORDER BY and direction from query string (sort, dir).
+    - Info disclosure: dumps plaintext passwords.
+    - CSRF: performs state-changing actions via GET by honoring ?delete=... (&confirm=no).
+    - XSS: reflects 'msg' from query into the page without escaping when used with |safe.
+    """
+    # 1) Weak "authorization"
+    if session.get('username') != 'admin':
+        # leak a bit of info about why you were blocked (verbose)
+        return "Admins only. Tip: login as 'admin'.", 403
+
+    # 2) Optional destructive action via GET (CSRF + IDOR)
+    delete_user = request.args.get('delete')
+    msg = ""
+    if delete_user:
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            # Deliberate SQL injection risk (string formatting)
+            cur.execute(f"DELETE FROM users WHERE username='{delete_user}';")
+            conn.commit()
+            cur.close()
+            conn.close()
+            msg = f"User '{delete_user}' deleted."
+        except Exception as e:
+            msg = f"Delete error: {e}"
+
+    # 3) Listing users with injectable ORDER BY
+    sort = request.args.get('sort', 'id')      # e.g. id, username, password
+    direction = request.args.get('dir', 'ASC') # ASC or DESC
+    # No whitelist… directly interpolated into SQL -> classic SQLi in ORDER BY
+    query = f"SELECT id, username, password FROM users ORDER BY {sort} {direction};"
+
+    users = []
+    err = ""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(query)
+        users = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        err = f"Query error: {e}"
+
+    # reflect 'msg' to demonstrate XSS if rendered with |safe in the template
+    return render_template('admin.html',
+                           users=users,
+                           err=err,
+                           msg=request.args.get('msg', msg),
+                           query_used=query)
 
 
+@app.route('/admin/impersonate', methods=['GET'])
+def admin_impersonate():
+    """
+    Extra flawed helper: lets the admin (or anyone who can call it) set session.username
+    via a GET parameter. Great for demonstrating session abuse.
+    """
+    who = request.args.get('as', 'user')
+    session['username'] = who
 
+    if who == 'user':
+            return redirect(url_for('index'))
 
+    if who == 'admin':
+                return redirect(url_for('index'))
 
-
-
-
+    # open redirect flavor with 'next=' param
+    nxt = request.args.get('next', url_for('admin_panel'))
+    return redirect(nxt)
 
 
 
@@ -350,4 +453,5 @@ def checkout():
 
 if __name__ == '__main__':
     init_db()
+    app.debug = True   # intentionally insecure for lab: shows tracebacks & secrets
     app.run(host='0.0.0.0', port=5000)

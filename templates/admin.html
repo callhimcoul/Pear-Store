@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Admin Panel</h1>
+
+{# Reflect unescaped msg for XSS demo – DELIBERATELY using |safe #}
+{% if msg %}
+<div class="success">Notice: {{ msg|safe }}</div>
+{% endif %}
+
+{% if err %}
+<div style="color:#e53a40;">Error: {{ err }}</div>
+{% endif %}
+
+
+
+
+
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+  <tr>
+    <th><a href="{{ url_for('admin_panel', sort='id') }}">ID</a></th>
+    <th><a href="{{ url_for('admin_panel', sort='username') }}">Username</a></th>
+    <th><a href="{{ url_for('admin_panel', sort='password') }}">Password</a></th>
+    <th>Danger</th>
+  </tr>
+  </thead>
+  <tbody>
+  {% for uid, uname, pwd in users %}
+  <tr>
+    <td>{{ uid }}</td>
+    <td>{{ uname }}</td>
+    <td>{{ pwd }}</td>
+    <td>
+      <!-- CSRF-able delete over GET -->
+      <a href="{{ url_for('admin_panel', delete=uname) }}"
+         onclick="return confirm('Delete {{ uname }}?');">Delete</a>
+      |
+
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<p style="margin-top:16px;">
+  Impersonate :
+  <a href="{{ url_for('admin_impersonate', as='admin') }}">as admin</a> |
+  <a href="{{ url_for('admin_impersonate', as='user') }}">as user</a>
+</p>
+{% endblock %}
