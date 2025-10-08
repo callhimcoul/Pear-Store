@@ -1,6 +1,6 @@
 import os
 import psycopg2
-from flask import Flask, render_template, request, redirect, session, url_for, flash
+from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify
 from functools import wraps
 
 app = Flask(__name__)
@@ -432,9 +432,45 @@ def admin_impersonate():
     return redirect(nxt)
 
 
+@app.route('/api/reset_password', methods=['PUT'])
+def api_reset_password():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Missing JSON body"}), 400
+
+    username = data.get('username', '').strip()
+    newpw = data.get('password', '')
+
+    if not username or not newpw:
+        return jsonify({"error": "username and password required"}), 400
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(f"UPDATE users SET password = '{newpw}' WHERE username = '{username}';")
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"status": "ok", "msg": f"Password for {username} updated"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/users', methods=['GET'])
+def api_dump_users():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT username, password FROM users;")
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+    users = [{"username": u, "password": p} for (u, p) in rows]
+
+    return jsonify({"users": users, "count": len(users)})
 
 
 
